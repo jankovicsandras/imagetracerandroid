@@ -6,7 +6,9 @@ TODO: backporting to imagetracer.js
  - getsvgstring() Z-indexing: a zindex[label] should contain only 1 path, sublist is not required
  - in tracepath(): discard first seqence part, remember the start of the second sequence, wrap over the last sequence
  - remove unnecessary defaults in functions
- - fixing colorquantization() and layering() with -1 boundary 
+ - fixing colorquantization() and layering() with -1 boundary
+ - fixing colorquantization(): move palette averaging to the top of the loop from the second iteration
+ - getsvgstring() width height exact pixels instead of 100%
  
  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -88,7 +90,7 @@ import android.graphics.BitmapFactory;
 
 public class ImageTracerAndroid{
 
-	public static String versionnumber = "1.0.2";
+	public static String versionnumber = "1.0.3";
 	
 	public static int arraycontains(String [] arr, String str){
 		for(int j=0; j<arr.length; j++ ){ if(arr[j].toLowerCase().equals(str)){ return j; } } return -1;
@@ -166,21 +168,21 @@ public class ImageTracerAndroid{
 	////////////////////////////////////////////////////////////
 	
 	// Loading an image from a file, tracing when loaded, then returning the SVG String
-	public static String imageToSVG (String filename, HashMap<String,Float> options) throws Exception{
+	public static String imageToSVG (String filename, HashMap<String,Float> options, byte [][] palette) throws Exception{
 		options = checkoptions(options);
 		ImageData imgd = loadImageData(filename);
-		return imagedataToSVG(imgd,options);
+		return imagedataToSVG(imgd,options,palette);
 	}// End of imageToSVG()
-	public static String imageToSVG (Bitmap bitmap, HashMap<String,Float> options) throws Exception{
+	public static String imageToSVG (Bitmap bitmap, HashMap<String,Float> options, byte [][] palette) throws Exception{
 		options = checkoptions(options);
 		ImageData imgd = loadImageData(bitmap);
-		return imagedataToSVG(imgd,options);
+		return imagedataToSVG(imgd,options,palette);
 	}// End of imageToSVG()
 
 	// Tracing ImageData, then returning the SVG String
-	public static String imagedataToSVG (ImageData imgd, HashMap<String,Float> options){
+	public static String imagedataToSVG (ImageData imgd, HashMap<String,Float> options, byte [][] palette){
 		options = checkoptions(options);
-		IndexedImage ii = imagedataToTracedata(imgd,options);
+		IndexedImage ii = imagedataToTracedata(imgd,options,palette);
 		return getsvgstring( 
 				imgd.width*options.get("scale"), imgd.height*options.get("scale"), 
 				ii,
@@ -188,21 +190,21 @@ public class ImageTracerAndroid{
 	}// End of imagedataToSVG()
 	
 	// Loading an image from a file, tracing when loaded, then returning IndexedImage with tracedata in layers
-	public IndexedImage imageToTracedata(String filename, HashMap<String,Float> options) throws Exception{
+	public IndexedImage imageToTracedata(String filename, HashMap<String,Float> options, byte [][] palette) throws Exception{
 		options = checkoptions(options);
 		ImageData imgd = loadImageData(filename);
-		return imagedataToTracedata(imgd,options);
+		return imagedataToTracedata(imgd,options,palette);
 	}// End of imageToTracedata()
-	public IndexedImage imageToTracedata(Bitmap bitmap, HashMap<String,Float> options) throws Exception{
+	public IndexedImage imageToTracedata(Bitmap bitmap, HashMap<String,Float> options, byte [][] palette) throws Exception{
 		options = checkoptions(options);
 		ImageData imgd = loadImageData(bitmap);
-		return imagedataToTracedata(imgd,options);
+		return imagedataToTracedata(imgd,options,palette);
 	}// End of imageToTracedata()
 	
 	// Tracing ImageData, then returning IndexedImage with tracedata in layers
-	public static IndexedImage imagedataToTracedata (ImageData imgd, HashMap<String,Float> options){
+	public static IndexedImage imagedataToTracedata (ImageData imgd, HashMap<String,Float> options, byte [][] palette){
 		// 1. Color quantization
-		IndexedImage ii = colorquantization(imgd, null, (int)(Math.floor(options.get("numberofcolors"))), options.get("mincolorratio"), (int)(Math.floor(options.get("colorquantcycles"))));
+		IndexedImage ii = colorquantization(imgd, palette, (int)(Math.floor(options.get("numberofcolors"))), options.get("mincolorratio"), (int)(Math.floor(options.get("colorquantcycles"))));
 		// 2. Layer separation and edge detection
 		int[][][] rawlayers = layering(ii);
 		// 3. Batch pathscan
@@ -256,6 +258,29 @@ public class ImageTracerAndroid{
 		// Repeat clustering step "cycles" times
 		for(int cnt=0;cnt<cycles;cnt++){
 			
+			// Creating average palette from the second iteration
+			if(cnt>0){
+				// averaging paletteacc for palette
+				float ratio;
+				for(int k=0;k<palette.length;k++){
+					// averaging
+					if(paletteacc[k][3]>0){
+						palette[k][0] = (byte) Math.floor(paletteacc[k][0]/paletteacc[k][3]);
+						palette[k][1] = (byte) Math.floor(paletteacc[k][1]/paletteacc[k][3]);
+						palette[k][2] = (byte) Math.floor(paletteacc[k][2]/paletteacc[k][3]);
+					}
+					ratio = paletteacc[k][3]/(imgd.width*imgd.height);
+					
+					// Randomizing a color, if there are too few pixels and there will be a new cycle
+					if((ratio<minratio)&&(cnt<cycles-1)){
+						palette[k][0] = (byte) Math.floor(Math.random()*255);
+						palette[k][1] = (byte) Math.floor(Math.random()*255);
+						palette[k][2] = (byte) Math.floor(Math.random()*255);
+					}
+					
+				}// End of palette loop
+			}// End of Creating average palette from the second iteration
+			
 			// Reseting palette accumulator for averaging
 			for(int i=0;i<palette.length;i++){
 				paletteacc[i][0]=0;
@@ -292,26 +317,6 @@ public class ImageTracerAndroid{
 					arr[j+1][i+1] = ci; 
 				}// End of i loop
 			}// End of j loop
-			
-			// averaging paletteacc for palette
-			float ratio;
-			for(int k=0;k<palette.length;k++){
-				// averaging
-				if(paletteacc[k][3]>0){
-					palette[k][0] = (byte) Math.floor(paletteacc[k][0]/paletteacc[k][3]);
-					palette[k][1] = (byte) Math.floor(paletteacc[k][1]/paletteacc[k][3]);
-					palette[k][2] = (byte) Math.floor(paletteacc[k][2]/paletteacc[k][3]);
-				}
-				ratio = paletteacc[k][3]/(imgd.width*imgd.height);
-				
-				// Randomizing a color, if there are too few pixels and there will be a new cycle
-				if((ratio<minratio)&&(cnt<cycles-1)){
-					palette[k][0] = (byte) Math.floor(Math.random()*255);
-					palette[k][1] = (byte) Math.floor(Math.random()*255);
-					palette[k][2] = (byte) Math.floor(Math.random()*255);
-				}
-				
-			}// End of palette loop
 			
 		}// End of Repeat clustering step "cycles" times
 		

@@ -110,7 +110,7 @@ public class ImagetracerActivity extends Activity {
 				try {
 					
 					// Tracing panda.png to an SVG string
-					String svgstring = ImageTracerAndroid.imageToSVG( imageTracerAppFolder.getAbsolutePath()+"/"+"panda.png" , os.getvals());
+					String svgstring = ImageTracerAndroid.imageToSVG( imageTracerAppFolder.getAbsolutePath()+"/"+"panda.png" , os.getvals(), null);
 					
 					// Saving SVG string as panda.svg
 					ImageTracerAndroid.saveString(imageTracerAppFolder.getAbsolutePath()+"/"+"panda.svg", svgstring );
@@ -259,7 +259,7 @@ public class ImagetracerActivity extends Activity {
 			Bitmap picture = (Bitmap) data.getExtras().get("data");
 			String svgstring = "";
 			try {
-				svgstring = ImageTracerAndroid.imageToSVG( picture , os.getvals());
+				svgstring = ImageTracerAndroid.imageToSVG( picture , os.getvals(), null);
 				ImageTracerAndroid.saveString(imageTracerAppFolder.getAbsolutePath()+"/"+timestamp()+".svg", svgstring );
 				wv.loadDataWithBaseURL("", svgstring, mimeType, encoding,"");
 			} catch (Exception e) { log(" Error tracing photo "+e.toString()); e.printStackTrace(); }
