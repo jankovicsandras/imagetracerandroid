@@ -1,23 +1,14 @@
 /*
-
-TODO: backporting to imagetracer.js
- - in pathscan(): holepath = true; instead of paths.type = "hole"
- - remove unnecessary path.type from pathscan in internodes() .... 
- - getsvgstring() Z-indexing: a zindex[label] should contain only 1 path, sublist is not required
- - in tracepath(): discard first seqence part, remember the start of the second sequence, wrap over the last sequence
- - remove unnecessary defaults in functions
- - fixing colorquantization() and layering() with -1 boundary
- - fixing colorquantization(): move palette averaging to the top of the loop from the second iteration
- - getsvgstring() width height exact pixels instead of 100%
- 
- ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	ImageTracer.java (Desktop version with javax.imageio. See ImageTracerAndroid.java for the the Android version.) 
+	ImageTracerAndroid.java (Android version with android.graphics. See ImageTracer.java for the desktop version.) 
 	Simple raster image tracer and vectorizer written in Java. This is a port of imagetracer.js. 
 	by András Jankovics 2015
 	andras@jankovics.net
 	
 	Tips:
+	 - color quantization uses randomization to recycle little used colors when colorquantcycles > 1 , 
+	   which means that output will be different every time. Use colorquantcycles = 1 to get deterministic output.
+	 - palette generation uses randomization to make some of the colors. Set numberofcolors to a qubic number 
+	   (e.g. 8, 27 or 64) to get a deterministic palette, or use a custom palette.
 	 - ltres,qtres : lower linear (ltres) and quadratic spline (qtres) error tresholds result 
 	   more details at the cost of longer paths (more segments). Usually 0.5 or 1 is good for both. When tracing
 	   round shapes, lower ltres, e.g. ltres=0.2 qtres=1 will result more curves, thus maybe better quality. Similarly,
@@ -90,15 +81,7 @@ import android.graphics.BitmapFactory;
 
 public class ImageTracerAndroid{
 
-	public static String versionnumber = "1.0.3";
-	
-	public static int arraycontains(String [] arr, String str){
-		for(int j=0; j<arr.length; j++ ){ if(arr[j].toLowerCase().equals(str)){ return j; } } return -1;
-	}
-	
-	public static float parsenext(String [] arr, int i){
-		if(i<arr.length-1){ try{ return Float.parseFloat(arr[i+1]); }catch(Exception e){} } return -1;
-	}
+	public static String versionnumber = "1.0.4";
 	
 	public static void log(String msg){ System.out.println(msg); }
 	
@@ -186,7 +169,7 @@ public class ImageTracerAndroid{
 		return getsvgstring( 
 				imgd.width*options.get("scale"), imgd.height*options.get("scale"), 
 				ii,
-				options.get("scale"), options.get("lcpr"), options.get("qcpr"));
+				options);
 	}// End of imagedataToSVG()
 	
 	// Loading an image from a file, tracing when loaded, then returning IndexedImage with tracedata in layers
@@ -282,12 +265,7 @@ public class ImageTracerAndroid{
 			}// End of Creating average palette from the second iteration
 			
 			// Reseting palette accumulator for averaging
-			for(int i=0;i<palette.length;i++){
-				paletteacc[i][0]=0;
-				paletteacc[i][1]=0;
-				paletteacc[i][2]=0;
-				paletteacc[i][3]=0;
-			}
+			for(int i=0;i<palette.length;i++){ paletteacc[i][0]=0; paletteacc[i][1]=0; paletteacc[i][2]=0; paletteacc[i][3]=0; }
 			
 			// loop through all pixels
 			for(int j=0;j<imgd.height;j++){
@@ -320,7 +298,7 @@ public class ImageTracerAndroid{
 			
 		}// End of Repeat clustering step "cycles" times
 		
-		return new IndexedImage(arr, palette, arr[1][1]);//{"array":arr,"palette":palette,"background":arr[1][1]};
+		return new IndexedImage(arr, palette, arr[1][1]);
 	}// End of colorquantization
 	
 	// Generating a palette with numberofcolors, array[numberofcolors][4] where [i][0] = R ; [i][1] = G ; [i][2] = B ; [i][3] = A 
@@ -331,9 +309,9 @@ public class ImageTracerAndroid{
 			// Grayscale
 			byte graystep = (byte) Math.floor(255/(numberofcolors-1));
 			for(byte ccnt=0;ccnt<numberofcolors;ccnt++){
-				palette[ccnt][0] = (byte)(ccnt*graystep);
-				palette[ccnt][1] = (byte)(ccnt*graystep);
-				palette[ccnt][2] = (byte)(ccnt*graystep);
+				palette[ccnt][0] = (byte)(-128+ccnt*graystep);
+				palette[ccnt][1] = (byte)(-128+ccnt*graystep);
+				palette[ccnt][2] = (byte)(-128+ccnt*graystep);
 				palette[ccnt][3] = (byte)255;
 			}
 			
@@ -346,9 +324,9 @@ public class ImageTracerAndroid{
 			for(int rcnt=0;rcnt<colorqnum;rcnt++){
 				for(int gcnt=0;gcnt<colorqnum;gcnt++){
 					for(int bcnt=0;bcnt<colorqnum;bcnt++){
-						palette[ccnt][0] = (byte)(rcnt*colorstep);
-						palette[ccnt][1] = (byte)(gcnt*colorstep);
-						palette[ccnt][2] = (byte)(bcnt*colorstep);
+						palette[ccnt][0] = (byte)(-128+rcnt*colorstep);
+						palette[ccnt][1] = (byte)(-128+gcnt*colorstep);
+						palette[ccnt][2] = (byte)(-128+bcnt*colorstep);
 						palette[ccnt][3] = (byte)255;
 						ccnt++;
 					}// End of blue loop
@@ -357,9 +335,9 @@ public class ImageTracerAndroid{
 			
 			// Rest is random
 			for(int rcnt=ccnt;rcnt<numberofcolors;rcnt++){
-				palette[ccnt][0] = (byte)(Math.floor(Math.random()*255));
-				palette[ccnt][1] = (byte)(Math.floor(Math.random()*255));
-				palette[ccnt][2] = (byte)(Math.floor(Math.random()*255));
+				palette[ccnt][0] = (byte)(-128+Math.floor(Math.random()*255));
+				palette[ccnt][1] = (byte)(-128+Math.floor(Math.random()*255));
+				palette[ccnt][2] = (byte)(-128+Math.floor(Math.random()*255));
 				palette[ccnt][3] = (byte)255;
 			}
 
@@ -384,16 +362,16 @@ public class ImageTracerAndroid{
 				
 				// This pixel"s indexed color
 				val = im.array[j][i];
-								
+				
 				// Are neighbor pixel colors the same?
-				if((j>0)&&(i>0)){ n1 = im.array[j-1][i-1]==val?1:0; }else{ n1 =0; }
-				if(j>0){ n2 = im.array[j-1][i]==val?1:0; }else{ n2 =0; }
-				if((j>0)&&(i<aw-1)){ n3 = im.array[j-1][i+1]==val?1:0; }else{ n3 =0; }
-				if(i>0){ n4 = im.array[j][i-1]==val?1:0; }else{ n4 = 0; }
-				if(i<aw-1){ n5 = im.array[j][i+1]==val?1:0; }else{ n5 = 0; }
-				if((j<ah-1)&&(i>0)){ n6 = im.array[j+1][i-1]==val?1:0; }else{ n6 = 0; }
-				if(j<ah-1){ n7 = im.array[j+1][i]==val?1:0; }else{ n7 = 0; }
-				if((j<ah-1)&&(i<aw-1)){ n8 = im.array[j+1][i+1]==val?1:0; }else{ n8 = 0; }
+				if((j>0)    && (i>0))   { n1 = im.array[j-1][i-1]==val?1:0; }else{ n1 = 0; }
+				if (j>0)                { n2 = im.array[j-1][i  ]==val?1:0; }else{ n2 = 0; }
+				if((j>0)    && (i<aw-1)){ n3 = im.array[j-1][i+1]==val?1:0; }else{ n3 = 0; }
+				if (i>0)                { n4 = im.array[j  ][i-1]==val?1:0; }else{ n4 = 0; }
+				if (i<aw-1)             { n5 = im.array[j  ][i+1]==val?1:0; }else{ n5 = 0; }
+				if((j<ah-1) && (i>0))   { n6 = im.array[j+1][i-1]==val?1:0; }else{ n6 = 0; }
+				if (j<ah-1)             { n7 = im.array[j+1][i  ]==val?1:0; }else{ n7 = 0; }
+				if((j<ah-1) && (i<aw-1)){ n8 = im.array[j+1][i+1]==val?1:0; }else{ n8 = 0; }
 				
 				// this pixel"s type and looking back on previous pixels
 				layers[val][j+1][i+1] = 1 + n5 * 2 + n8 * 4 + n7 * 8 ;
@@ -428,7 +406,7 @@ public class ImageTracerAndroid{
 					
 					// Init
 					px = i; py = j;
-					paths.add(new ArrayList<Integer[]>());//paths[pacnt] = [];
+					paths.add(new ArrayList<Integer[]>());
 					thispath = paths.get(paths.size()-1);
 					pathfinished = false;
 					// fill paths will be drawn, but hole paths are also required to remove unnecessary edge nodes
@@ -451,8 +429,8 @@ public class ImageTracerAndroid{
 						
 						// New path point
 						thispath.add(new Integer[3]);
-						thispath.get(thispath.size()-1)[0] = px;
-						thispath.get(thispath.size()-1)[1] = py;
+						thispath.get(thispath.size()-1)[0] = px-1;
+						thispath.get(thispath.size()-1)[1] = py-1;
 						thispath.get(thispath.size()-1)[2] = arr[py][px];
 						
 						// Node types
@@ -462,7 +440,7 @@ public class ImageTracerAndroid{
 								py--;dir=1; 
 							}else if(dir==3){
 								px--;dir=2; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==2){
@@ -471,7 +449,7 @@ public class ImageTracerAndroid{
 								px++;dir=0; 
 							}else if(dir==2){
 								py--;dir=1; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 						
 						else if(arr[py][px]==3){
@@ -480,7 +458,7 @@ public class ImageTracerAndroid{
 								px++;
 							}else if(dir==2){
 								px--;
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==4){
@@ -489,7 +467,7 @@ public class ImageTracerAndroid{
 								px++;dir=0; 
 							}else if(dir==2){
 								py++;dir=3; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==5){
@@ -510,7 +488,7 @@ public class ImageTracerAndroid{
 								py--;
 							}else if(dir==3){
 								py++;
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 						
 						else if(arr[py][px]==7){
@@ -519,7 +497,7 @@ public class ImageTracerAndroid{
 								py++;dir=3; 
 							}else if(dir==1){
 								px--;dir=2; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==8){
@@ -528,7 +506,7 @@ public class ImageTracerAndroid{
 								py++;dir=3; 
 							}else if(dir==1){
 								px--;dir=2; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==9){
@@ -537,7 +515,7 @@ public class ImageTracerAndroid{
 								py--;
 							}else if(dir==3){
 								py++;
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==10){
@@ -558,7 +536,7 @@ public class ImageTracerAndroid{
 								px++;dir=0; 
 							}else if(dir==2){
 								py++;dir=3; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==12){
@@ -567,7 +545,7 @@ public class ImageTracerAndroid{
 								px++;
 							}else if(dir==2){
 								px--;
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==13){
@@ -576,7 +554,7 @@ public class ImageTracerAndroid{
 								py--;dir=1; 
 							}else if(dir==3){
 								px++;dir=0; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
 
 						else if(arr[py][px]==14){
@@ -585,11 +563,11 @@ public class ImageTracerAndroid{
 								py--;dir=1; 
 							}else if(dir==3){
 								px--;dir=2; 
-							}else{log("Invalid dir "+dir+" on px "+px+" py "+py);pathfinished=true;paths.remove(thispath);}
+							}else{pathfinished=true;paths.remove(thispath);}
 						}
-												
+						
 						// Close path
-						if((px==thispath.get(0)[0])&&(py==thispath.get(0)[1])){ 
+						if((px-1==thispath.get(0)[0])&&(py-1==thispath.get(0)[1])){ 
 							pathfinished = true;
 							pacnt++;
 							// Discarding "hole" type paths
@@ -642,10 +620,10 @@ public class ImageTracerAndroid{
 	public static ArrayList<ArrayList<Double[]>> internodes (ArrayList<ArrayList<Integer[]>> paths){
 		ArrayList<ArrayList<Double[]>> ins = new ArrayList<ArrayList<Double[]>>();
 		ArrayList<Double[]> thisinp;
-		Double[] thispoint;
-		Integer[] pp1, pp2;
+		Double[] thispoint, nextpoint = new Double[2];
+		Integer[] pp1, pp2, pp3;
 		
-		int palen=0,nextidx=0;
+		int palen=0,nextidx=0,nextidx2=0;
 		// paths loop
 		for(int pacnt=0; pacnt<paths.size(); pacnt++){
 			ins.add(new ArrayList<Double[]>());
@@ -655,27 +633,31 @@ public class ImageTracerAndroid{
 			for(int pcnt=0;pcnt<palen;pcnt++){
 			
 				// interpolate between two path points
-				nextidx = (pcnt+1)%palen;
+				nextidx = (pcnt+1)%palen; nextidx2 = (pcnt+2)%palen;
 				thisinp.add(new Double[3]);
 				thispoint = thisinp.get(thisinp.size()-1);
 				pp1 = paths.get(pacnt).get(pcnt);
 				pp2 = paths.get(pacnt).get(nextidx);
+				pp3 = paths.get(pacnt).get(nextidx2);
 				thispoint[0] = (pp1[0]+pp2[0]) / 2.0;
 				thispoint[1] = (pp1[1]+pp2[1]) / 2.0;
+				nextpoint[0] = (pp2[0]+pp3[0]) / 2.0;
+				nextpoint[1] = (pp2[1]+pp3[1]) / 2.0;
+				
 				
 				// line segment direction to the next point
-				if(pp1[0]<pp2[0]){ 
-					if(pp1[1]<pp2[1]){ thispoint[2] = 1.0; // SouthEast
-					}else if(pp1[1]>pp2[1]){ thispoint[2] = 7.0; // NE
-					}else{ thispoint[2] = 0.0; } // E
-				}else if(pp1[0]>pp2[0]){
-					if(pp1[1]<pp2[1]){ thispoint[2] = 3.0; // SW
-					}else if(pp1[1]>pp2[1]){ thispoint[2] = 5.0; // NW
-					}else{ thispoint[2] = 4.0; } // N
+				if(thispoint[0] < nextpoint[0]){
+					if     (thispoint[1] < nextpoint[1]){ thispoint[2] = 1.0; }// SouthEast
+					else if(thispoint[1] > nextpoint[1]){ thispoint[2] = 7.0; }// NE
+					else                                { thispoint[2] = 0.0; } // E
+				}else if(thispoint[0] > nextpoint[0]){
+					if     (thispoint[1] < nextpoint[1]){ thispoint[2] = 3.0; }// SW
+					else if(thispoint[1] > nextpoint[1]){ thispoint[2] = 5.0; }// NW
+					else                                { thispoint[2] = 4.0; }// N
 				}else{
-					if(pp1[1]<pp2[1]){ thispoint[2] = 2.0; // S
-					}else if(pp1[1]>pp2[1]){ thispoint[2] = 6.0; // N
-					}else{ thispoint[2] = 8.0; }// center, this should not happen
+					if     (thispoint[1] < nextpoint[1]){ thispoint[2] = 2.0; }// S
+					else if(thispoint[1] > nextpoint[1]){ thispoint[2] = 6.0; }// N
+					else                                { thispoint[2] = 8.0; }// center, this should not happen
 				}
 				
 			}// End of pathpoints loop 
@@ -700,10 +682,9 @@ public class ImageTracerAndroid{
 	// 5.2. Fit a straight line on the sequence
 	// 5.3. If the straight line fails (an error>ltreshold), find the point with the biggest error
 	// 5.4. Fit a quadratic spline through errorpoint (project this to get controlpoint), then measure errors on every point in the sequence
-	// 5.5. If the spline fails (an error>qtreshold), find the point with the biggest error
-	// 5.6. Set splitpoint = (fitting point + errorpoint)/2
-	// 5.7. Split sequence and recursively apply 3. - 7. to startpoint-splitpoint and splitpoint-endpoint sequences
-	// 5.8. TODO? If splitpoint-endpoint is a spline, try to add new points from the next sequence
+	// 5.5. If the spline fails (an error>qtreshold), find the point with the biggest error, set splitpoint = (fitting point + errorpoint)/2
+	// 5.6. Split sequence and recursively apply 5.2. - 5.7. to startpoint-splitpoint and splitpoint-endpoint sequences
+	// 5.7. TODO? If splitpoint-endpoint is a spline, try to add new points from the next sequence
 	
 	// This returns an SVG Path segment as a double[7] where
 	// segment[0] ==1.0 linear  ==2.0 quadratic interpolation
@@ -716,50 +697,26 @@ public class ImageTracerAndroid{
 	public static ArrayList<Double[]> tracepath (ArrayList<Double[]> path, float ltreshold, float qtreshold){
 		int pcnt=0, seqend=0; double segtype1, segtype2;
 		ArrayList<Double[]> smp = new ArrayList<Double[]>();
-		Double [] thissegment;
-		while(pcnt<path.size()){
+		//Double [] thissegment;
+		int pathlength = path.size();
+		
+		while(pcnt<pathlength){
 			// 5.1. Find sequences of points with only 2 segment types
 			segtype1 = path.get(pcnt)[2]; segtype2 = -1; seqend=pcnt+1;
-			while( ((path.get(seqend)[2]==segtype1) || (path.get(seqend)[2]==segtype2) || (segtype2==-1)) && (seqend<path.size()-1)){
-				if((path.get(seqend)[2]!=segtype1) && (segtype2==-1)){ segtype2 = path.get(seqend)[2];}
-				seqend++;
+			while( 
+				((path.get(seqend)[2]==segtype1) || (path.get(seqend)[2]==segtype2) || (segtype2==-1)) 
+				&& (seqend<pathlength-1)){
+					if((path.get(seqend)[2]!=segtype1) && (segtype2==-1)){ segtype2 = path.get(seqend)[2];}
+					seqend++;
 			}
+			if(seqend==pathlength-1){ seqend = 0; }
 			
-			// TODO: discard first seqence part, remember the start of the second sequence, wrap over the last sequence
-			
-			// 5.2. - 5.7. Split sequence and recursively apply 3. - 7. to startpoint-splitpoint and splitpoint-endpoint sequences
+			// 5.2. - 5.6. Split sequence and recursively apply 5.2. - 5.6. to startpoint-splitpoint and splitpoint-endpoint sequences
 			smp.addAll(fitseq(path,ltreshold,qtreshold,pcnt,seqend));
-			// 5.8. TODO? If splitpoint-endpoint is a spline, try to add new points from the next sequence
+			// 5.7. TODO? If splitpoint-endpoint is a spline, try to add new points from the next sequence
 			
 			// forward pcnt;
-			pcnt = seqend;
-			
-			// check if there are enough remaining points
-			if(pcnt>path.size()-3){
-				if(pcnt==path.size()-2){
-					smp.add(new Double[7]);
-					thissegment = smp.get(smp.size()-1);
-					thissegment[0] = 2.0;
-					thissegment[1] = path.get(pcnt)[0];
-					thissegment[2] = path.get(pcnt)[1];
-					thissegment[3] = path.get(path.size()-1)[0];
-					thissegment[4] = path.get(path.size()-1)[1];
-					thissegment[5] = path.get(0)[0];
-					thissegment[6] = path.get(0)[1];
-					pcnt = path.size();
-				}else{
-					smp.add(new Double[7]);
-					thissegment = smp.get(smp.size()-1);
-					thissegment[0] = 1.0;
-					thissegment[1] = path.get(pcnt)[0];
-					thissegment[2] = path.get(pcnt)[1];
-					thissegment[3] = path.get(0)[0];
-					thissegment[4] = path.get(0)[1];
-					thissegment[5] = 0.0;
-					thissegment[6] = 0.0;
-					pcnt = path.size();
-				}
-			}// End of remaining points check
+			if(seqend>0){ pcnt = seqend; }else{ pcnt = pathlength; }
 			
 		}// End of pcnt loop
 		
@@ -767,28 +724,35 @@ public class ImageTracerAndroid{
 		
 	}// End of tracepath()
 	
-	// 5.2. - 5.7. recursively fitting a straight or quadratic line segment on this sequence of path nodes, 
+	// 5.2. - 5.6. recursively fitting a straight or quadratic line segment on this sequence of path nodes, 
 	// called from tracepath()
 	public static ArrayList<Double[]> fitseq (ArrayList<Double[]> path, float ltreshold, float qtreshold, int seqstart, int seqend){
 		ArrayList<Double[]> segment = new ArrayList<Double[]>();
 		Double [] thissegment;
-		// return if 0 length
-		if(seqstart>=seqend){return segment;}
+		int pathlength = path.size();
+		
+		// return if invalid seqend
+		if((seqend>pathlength)||(seqend<0)){return segment;}
 		
 		int errorpoint=seqstart;
 		boolean curvepass=true;
 		double px, py, dist2, errorval=0;
-		double vx = (double)(path.get(seqend)[0]-path.get(seqstart)[0]) / (double)(seqend-seqstart), 
-			   vy = (double)(path.get(seqend)[1]-path.get(seqstart)[1]) / (double)(seqend-seqstart);
+		double tl = (seqend-seqstart); if(tl<0){ tl += pathlength; }
+		double vx = (double)(path.get(seqend)[0]-path.get(seqstart)[0]) / tl, 
+			   vy = (double)(path.get(seqend)[1]-path.get(seqstart)[1]) / tl;
 		
 		// 5.2. Fit a straight line on the sequence
-		for(int pcnt=seqstart+1;pcnt<seqend;pcnt++){
-			px = path.get(seqstart)[0] + vx * (pcnt-seqstart); py = path.get(seqstart)[1] + vy * (pcnt-seqstart);
+		int pcnt = (seqstart+1)%pathlength;
+		double pl;
+		while(pcnt != seqend){
+			pl = pcnt-seqstart; if(pl<0){ pl += pathlength; }
+			px = path.get(seqstart)[0] + vx * pl; py = path.get(seqstart)[1] + vy * pl;
 			dist2 = (path.get(pcnt)[0]-px)*(path.get(pcnt)[0]-px) + (path.get(pcnt)[1]-py)*(path.get(pcnt)[1]-py);
 			if(dist2>ltreshold){curvepass=false;}
 			if(dist2>errorval){ errorpoint=pcnt; errorval=dist2; }
-			pcnt++;
+			pcnt = (pcnt+1)%pathlength;
 		}
+		
 		// return straight line if fits
 		if(curvepass){
 			segment.add(new Double[7]);
@@ -808,21 +772,25 @@ public class ImageTracerAndroid{
 		
 		// 5.4. Fit a quadratic spline through this point, measure errors on every point in the sequence
 		// helpers and projecting to get control point
-		double t=(double)(fitpoint-seqstart)/(double)(seqend-seqstart), t1=(1.0-t)*(1.0-t), t2=2.0*(1.0-t)*t, t3=t*t;
+		double t=(double)(fitpoint-seqstart)/tl, t1=(1.0-t)*(1.0-t), t2=2.0*(1.0-t)*t, t3=t*t;
 		double cpx = (t1*path.get(seqstart)[0] + t3*path.get(seqend)[0] - path.get(fitpoint)[0])/-t2 ,
-			cpy = (t1*path.get(seqstart)[1] + t3*path.get(seqend)[1] - path.get(fitpoint)[1])/-t2 ;
+			   cpy = (t1*path.get(seqstart)[1] + t3*path.get(seqend)[1] - path.get(fitpoint)[1])/-t2 ;
+		
 		// Check every point
-		for(int pcnt=seqstart+2;pcnt<seqend-1;pcnt++){
+		pcnt = seqstart+1;
+		while(pcnt != seqend){
 			
-			t=(double)(pcnt-seqstart)/(double)(seqend-seqstart); t1=(1.0-t)*(1.0-t); t2=2.0*(1.0-t)*t; t3=t*t;
-			px = t1*path.get(seqstart)[0]+t2*cpx+t3*path.get(seqend)[0]; py = t1*path.get(seqstart)[1]+t2*cpy+t3*path.get(seqend)[1];
+			t=(double)(pcnt-seqstart)/tl; t1=(1.0-t)*(1.0-t); t2=2.0*(1.0-t)*t; t3=t*t;
+			px = t1 * path.get(seqstart)[0] + t2 * cpx + t3 * path.get(seqend)[0]; 
+			py = t1 * path.get(seqstart)[1] + t2 * cpy + t3 * path.get(seqend)[1];
 			
 			dist2 = (path.get(pcnt)[0]-px)*(path.get(pcnt)[0]-px) + (path.get(pcnt)[1]-py)*(path.get(pcnt)[1]-py);
 			
 			if(dist2>qtreshold){curvepass=false;}
 			if(dist2>errorval){ errorpoint=pcnt; errorval=dist2; }
-			pcnt++;
+			pcnt = (pcnt+1)%pathlength;
 		}
+		
 		// return spline if fits
 		if(curvepass){
 			segment.add(new Double[7]);
@@ -837,11 +805,11 @@ public class ImageTracerAndroid{
 			return segment; 
 		}
 		
-		// 5.5. If the spline fails (an error>qtreshold), find the point with the biggest error
-		// 5.6. Set splitpoint = (fitting point + errorpoint)/2
+		// 5.5. If the spline fails (an error>qtreshold), find the point with the biggest error,
+		// set splitpoint = (fitting point + errorpoint)/2
 		int splitpoint = (int)((fitpoint + errorpoint)/2);
 		
-		// 5.7. Split sequence and recursively apply 5.2. - 5.6. to startpoint-splitpoint and splitpoint-endpoint sequences
+		// 5.6. Split sequence and recursively apply 5.2. - 5.6. to startpoint-splitpoint and splitpoint-endpoint sequences
 		segment = fitseq(path,ltreshold,qtreshold,seqstart,splitpoint);
 		segment.addAll(fitseq(path,ltreshold,qtreshold,splitpoint,seqend));
 		return segment;
@@ -875,7 +843,7 @@ public class ImageTracerAndroid{
 	// Getting SVG path element string from a traced path
 	public static void svgpathstring(StringBuilder sb, String desc, ArrayList<Double[]> segments, String fillcolor, float scale, float lcpr, float qcpr){
 		// Path
-		sb.append("<path fill=\"").append(fillcolor).append("\" stroke=\"").append(fillcolor).append("\" stroke-width=\"").append(1).append("\" desc=\"").append(desc).append("\" d=\"" ).append(
+		sb.append("<path desc=\"").append(desc).append("\" fill=\"").append(fillcolor).append("\" stroke=\"").append(fillcolor).append("\" stroke-width=\"").append(1).append("\" d=\"" ).append(
 				"M").append(segments.get(0)[1]*scale).append(" ").append(segments.get(0)[2]*scale).append(" ");
 		
 		for(int pcnt=0;pcnt<segments.size();pcnt++){
@@ -921,8 +889,8 @@ public class ImageTracerAndroid{
 	
 	// Converting tracedata to an SVG string, paths are drawn according to a Z-index 
 	// the optional lcpr and qcpr are linear and quadratic control point radiuses 
-	public static String getsvgstring(double w, double h, IndexedImage ii, float scale, float lcpr, float qcpr){
-		
+	public static String getsvgstring(double w, double h, IndexedImage ii, HashMap<String,Float> options){
+		options = checkoptions(options); float scale=options.get("scale"), lcpr=options.get("lcpr"), qcpr=options.get("qcpr");
 		// SVG start
 		StringBuilder svgstr = new StringBuilder("<svg width=\""+w+"px\" height=\""+h+"px\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" desc=\"Created with ImageTracerAndroid.java\" >");
 
