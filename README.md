@@ -6,13 +6,13 @@ by András Jankovics 2015
 This is the Android version of ImageTracer.java: https://github.com/jankovicsandras/imagetracerjava
 
 The library:
-https://github.com/jankovicsandras/imagetracerandroid/src/jankovicsandras/imagetracerandroid/ImageTracerAndroid.java
+https://github.com/jankovicsandras/imagetracerandroid/blob/master/src/jankovicsandras/imagetracerandroid/ImageTracerAndroid.java
 
 Sample Activity:
-https://github.com/jankovicsandras/imagetracerandroid/src/jankovicsandras/imagetracerapp/ImagetracerActivity.java
+https://github.com/jankovicsandras/imagetracerandroid/blob/master/src/jankovicsandras/imagetracerapp/ImagetracerActivity.java
 
 Android application:
-https://github.com/jankovicsandras/imagetracerandroid/bin/ImageTracerApp.apk
+https://github.com/jankovicsandras/imagetracerandroid/blob/master/bin/ImageTracerApp.apk
 
 The whole package is an Android project.
 
