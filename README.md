@@ -18,7 +18,7 @@ The whole package is an Android project.
 
 ### Including in Android projects
 Add ImageTracerAndroid.java to your build path, import, then use the static methods:
-```
+```java
 import jankovicsandras.imagetracerandroid.ImageTracerAndroid;
 
 ...
