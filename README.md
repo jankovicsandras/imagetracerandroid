@@ -1,5 +1,6 @@
 # imagetracerandroid
 ![alt Bitmap to Svg](docimages/s1.png)
+
 Simple raster image tracer and vectorizer written in Java for Android. See https://github.com/jankovicsandras/imagetracerjava for the desktop Java version.
 
 by András Jankovics 2015, 2016
