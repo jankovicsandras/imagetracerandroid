@@ -3,18 +3,18 @@
 
 Simple raster image tracer and vectorizer written in Java for Android. See https://github.com/jankovicsandras/imagetracerjava for the desktop Java version.
 
-by András Jankovics 2015, 2016
+by András Jankovics
 
 This is the Android version of ImageTracer.java, please read that for more details: https://github.com/jankovicsandras/imagetracerjava
 
 The library:
-imagetracerandroid/src/jankovicsandras/imagetracerandroid/ImageTracerAndroid.java
+[src/jankovicsandras/imagetracerandroid/ImageTracerAndroid.java](https://github.com/jankovicsandras/imagetracerandroid/blob/master/src/jankovicsandras/imagetracerandroid/ImageTracerAndroid.java)
 
 Sample Activity:
-imagetracerandroid/src/jankovicsandras/imagetracerapp/ImagetracerActivity.java
+[src/jankovicsandras/imagetracerapp/ImagetracerActivity.java](https://github.com/jankovicsandras/imagetracerandroid/blob/master/src/jankovicsandras/imagetracerapp/ImagetracerActivity.java)
 
 Android application:
-imagetracerandroid/bin/ImageTracerApp.apk
+[bin/ImageTracerApp.apk](https://github.com/jankovicsandras/imagetracerandroid/blob/master/bin/ImageTracerApp.apk)
 
 The whole package is an Android project.
 
@@ -33,15 +33,15 @@ I will try to update this documentation as soon as I have enough time. :)
 - new ```options.desc``` : setting this to false will turn off path descriptions, reducing SVG length.
 - new ```options.viewbox``` : setting this to true will use viewBox instead of exact width and height
 - new ```options.colorsampling``` : color quantization will sample the colors now by default, can be turned off.
-- new ```options.blurradius``` : setting this to 1..5 will preprocess the image with a selective Gaussian blur with options.blurdelta treshold. This can filter noise and improve quality.
+- new ```options.blurradius``` : setting this to 1..5 will preprocess the image with a selective Gaussian blur with ```options.blurdelta``` treshold. This can filter noise and improve quality.
 - ```IndexedImage``` has width and height
-- ```getsvgstring()``` needs now only IndexedImage (tracedata) and options as parameters
-- ```colorquantization()``` needs now only imgd, palette and options as parameters
+- ```getsvgstring()``` needs now only ```IndexedImage``` (tracedata) and ```options``` as parameters
+- ```colorquantization()``` needs now only ```imgd```, ```palette``` and ```options``` as parameters
 - background field is removed from the results of color quantization 
 
 
 ### Deterministic output
-See [choices for deterministic tracing](https://github.com/jankovicsandras/imagetracerandroid/blob/master/deterministic.md)
+See [options for deterministic tracing](https://github.com/jankovicsandras/imagetracerandroid/blob/master/deterministic.md)
 
 
 ### Main Functions
